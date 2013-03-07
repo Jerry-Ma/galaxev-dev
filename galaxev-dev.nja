@@ -1,0 +1,18 @@
+{
+  "mainFile": "main.py", 
+  "venv": "/home/ma/Codes/virtualenv_1/galaxev-dev/bin/python", 
+  "relatedProjects": [], 
+  "name": "galaxev-dev", 
+  "license": "Other", 
+  "url": "", 
+  "pythonPath": "python", 
+  "preExecScript": "", 
+  "programParams": "", 
+  "PYTHONPATH": "/home/ma/Codes/virtualenv_1/galaxev-dev/lib/python2.7/sites-package/", 
+  "supported-extensions": [
+    ".py"
+  ], 
+  "project-type": "dev version of galaxev-pyraf", 
+  "postExecScript": "", 
+  "description": "integrated, effiecient, code opimized."
+}
