@@ -14,5 +14,5 @@ par = cfg.Cfg()
 par.menu_lst = []
 par.gui_view = True
 par.echo_str = 'test'
-par.pars_axs = {'root': [2, 2], 'sub1': [3, 3], 'sub2': [4, 4]}
+par.pars_axs = {'Tracks': [2, 4], 'SFH&Dust': [2, 3], 'Met&Age': [7, 21]}
 main(par)
