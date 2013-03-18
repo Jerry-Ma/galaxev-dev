@@ -3,16 +3,21 @@ import draw
 import cfg
 
 
-def main(par):
-    if par.gui_view:
-        ui = draw.UI(par=par)  # instantize a main window
-        ui.master.title("main")
-        ui.pack()
-        ui.mainloop()
+def lib_view(par):
+    ui = draw.UI(par=par)  # instantize a main window
+    ui.master.title("Lib_View")
+    ui.pack()
+    ui.mainloop()
+
+def pars_view(par):
+    ui = draw.UI(par=par)
+    ui.master.title("Parspace View")
+    ui.pack()
+    ui.mainloop()
 
 par = cfg.Cfg()
-par.menu_lst = []
-par.gui_view = True
-par.echo_str = 'test'
-par.pars_axs = {'Tracks': [2, 4], 'SFH&Dust': [2, 3], 'Met&Age': [7, 21]}
-main(par)
+par.lib_view = False
+if par.lib_view == True:
+    lib_view(par)
+else:
+    pars_view(par)
