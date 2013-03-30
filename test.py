@@ -1,24 +1,41 @@
-from matplotlib import pyplot as plt
+from __future__ import print_function
+from matplotlib.pyplot import figure, show
+from matplotlib.lines import Line2D
+from matplotlib.patches import Rectangle
+from matplotlib.text import Text
+from matplotlib.image import AxesImage
+import numpy as np
+from numpy.random import rand
 
-class LineBuilder:
-    def __init__(self, line):
-        self.line = line
-        self.xs = list(line.get_xdata())
-        self.ys = list(line.get_ydata())
-        self.cid = line.figure.canvas.mpl_connect('motion_notify_event', self)
+ # picking on a scatter plot (matplotlib.collections.RegularPolyCollection)
 
-    def __call__(self, event):
-        #print 'click', event
-        if event.inaxes!=self.line.axes: return
-        self.xs.append(event.xdata)
-        self.ys.append(event.ydata)
-        self.line.set_data(self.xs, self.ys)
-        self.line.figure.canvas.draw()
+x, y, c, s = rand(4, 100)
 
-fig = plt.figure()
-ax = fig.add_subplot(111)
-ax.set_title('click to build line segments')
-line, = ax.plot([0], [0])  # empty line
-linebuilder = LineBuilder(line)
+def onmove(event):
+   # if col.contains(event):
+    #   # print ('in')
+    #else:
+        #print ('out')
+    #col.pick(event)
+    pass
+def onpick3(event):
+    ind = event.ind
 
-plt.show()
+    colors = col.get_facecolor()
+    colors[ind] = np.abs([[1, 1, 1, 0]] - colors[ind])
+    col.set_facecolor(colors)
+    fig.canvas.draw()
+    #print (colors)
+#    1 - col.get_facecolor()[ind]
+    #print ('onpick3 scatter:', ind, np.take(x, ind), np.take(y, ind))
+
+fig = figure()
+ax1 = fig.add_subplot(111)
+col = ax1.scatter(x, y, 100 * s, c, picker=True)
+col.in_o = False
+col.in_new = True
+#fig.savefig('pscoll.eps')
+fig.canvas.mpl_connect('pick_event', onpick3)
+#col.pick()
+fig.canvas.mpl_connect('motion_notify_event', col.pick)
+show()

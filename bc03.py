@@ -13,17 +13,20 @@ class Ised:
     bc03_iseds = None
     bc03_colors = None
 
+    # filters
+    flts = ['U', 'B', 'V', 'I', 'R']
+
     # dict for keyword mapping
     # tracks
     track = {'Padova_1994_chabrier': 0, 'Padova_1994_salpeter': 1}
     res = {'h': 0, 'l': 1}
     # star formation history
-    sfh = {'Instant Burst(SSP)': 0, 'Exp_Tau': 1, 'Single Burst': 2,
+    sfh = {'Instant_Burst': 0, 'Exp_Tau': 1, 'Single_Burst': 2,
                       'Constant': 3, 'Delayed': 4, 'Linear': 5}
-    sfh_tau = {}  # dict maps sfh to a list contain tau
+    s_tau = {}  # dict maps sfh to a list contain tau
     # deal with dust
-    dust_tau = []
-    dust_mu = []
+    d_tau = [0, ]
+    d_mu = [0, ]
     # deal with redshift
     red = []
     h0 = 0.7
@@ -31,39 +34,49 @@ class Ised:
     # metalicity
     metalicity = {'0.0001': 0, '0.0004': 1, '0.004': 2, '0.008': 3,
                      '0.02': 4, '0.05': 5}
-    met = []
+    met = [0, ]
     # age
     age = [0, ]
 
     def __init__(self, par=None):
         ##  par has a, b, c as string, d as list
-        a = b = c = 0
-        d = [0, ]
+        a = 'Padova_1994_chabrier'
+        b = 'h'
+        c = 'Instant_Burst'
+        self.s_tau = np.arange(0.1, 0.9, 0.2)  # sfh_tau
+        self.code_txt = a + '__' + b + '__' + c
+        self.d_tau = np.arange(0.1, 0.9, 0.4)
+        self.d_mu = np.arange(0.1, 0.9, 0.1)
+        self.met = np.array([0.0001, 0.0004, 0.004, 0.008,
+                     0.02, 0.05])
+        self.age = np.arange(1.0, 20.0, 1.0)
         # init points in parameter space from epar of pyraf
-        self.sfh_tau[c] = d
+        #self.s_tau[c] = d
         # code is those single inputs
         code = [self.track[a], self.res[b], self.sfh[c]]
         # lst is those multi inputs, iterate to expand
         temp = []  # init container
         # last element in temp: 0 - not calculated
         #                       1 - calculated
-        for i in self.sfh_tau[c]:
-            for j in self.dust_tau:
-                for k in self.dust_mu:
-                    temp.append([code[0], code[1], code[2],
-                        i, j, k, ''])
+        for i in self.s_tau:
+            for j in self.d_tau:
+                for k in self.d_mu:
+                    for l in self.met:
+                        for m in self.age:
+                            temp.append((code[0], code[1], code[2],
+                                i, j, k, l, m, ' '))
         # generate rec array for accessibility
-        inpt = np.array(temp,
+        self.parspace = np.array(temp,
             dtype=[('track', 'i'), ('res', 'i'), ('sfh', 'i'),
-                ('s_tau', 'f'), ('d_tau', 'f'),
-                ('d_mu', 'f'), ('lib_file', 's')])
+                ('s_tau', 'f'), ('d_tau', 'f'), ('d_mu', 'f'),
+                ('met', 'f'), ('age', 'f'), ('lib_file', 'S4')])
         # mark down the existence of lib
         # lib_file is ised/*.ised
         # for age=0, get lib_color/*.1color,
         # for age!=0, get lib_spec/*.spec
-        for e in inpt:
+        for e in self.parspace:
             # get search string
-            search_key = self.gen_name(e)  # it is lib_file name
+            search_key = gen_name(e)  # it is lib_file name
             if search_key == 'exist':
                 e[-1] = search_key
 
@@ -81,3 +94,8 @@ class Cfg:
 
 
 # functions for manipulating the file_name and input
+def gen_name(e):
+    return 'exist'
+
+#
+#def
