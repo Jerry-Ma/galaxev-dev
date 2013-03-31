@@ -26,22 +26,34 @@ class UI(ttk.Frame):
         # container for checkbutton status
         self.cbvar = {}
         self.checked = 0
-        # checkbutton: sfh_tau, dust_tau, dust_mu, met, age
-        cb_txt = ['s_tau', 'd_tau', 'd_mu', 'met', 'age']
-        for txt in cb_txt:
+        # checkbutton: s_tau, dust_tau, dust_mu, met, age
+        for txt in par.ised.parspace.dtype.names[3:8]:
             self.cbvar[txt] = Tkinter.IntVar()
             cb = ttk.Checkbutton(mn, text=txt, variable=self.cbvar[txt],
                 command=functools.partial(self.set_layer,
                     mn, cv, txt, par))
             mn.ttl.append(cb)
             mn.ttl[-1].pack(side='left')
-
         # set_layer generate the plot for parspace according to self.cbvar{}
-        self.set_layer(mn, cv, None, par)
+        self.set_layer(mn, cv, None, par)  # this is the start screen
 
     def set_layer(self, mn, cv, i, par):
         # for init state
         if i is None:
+            info = "\
+    +------------------------------------------------------------+\n\
+    |     Wrapper of Galaxev -- Stellar Population Synthesis     |\n\
+    |            source code ver2003 / wrapper ver1.0            |\n\
+    |                  Wrapped by Jerry, 2013                    |\n\
+    |                                                            |\n\
+    |                         Credits                            |\n\
+    |            Gustavo BRUZUAL & Stephane CHARLOT              |\n\
+    |                                                            |\n\
+    +------------------------------------------------------------+\
+    "
+            cv.ax.text(0.0, 0.12, info, family='monospace', fontsize=12)
+            cv.ax.xaxis.set_visible(False)
+            cv.ax.yaxis.set_visible(False)
             return
         # allow maximum of two checked
         if self.cbvar[i].get() == 1:
@@ -53,7 +65,7 @@ class UI(ttk.Frame):
                 self.checked = self.checked + 1
         else:
             self.checked = self.checked - 1
-        # get the axises
+        # get the axis
         ax_txt = []
         for k, v in self.cbvar.items():
             if v.get() == 1:
@@ -157,19 +169,19 @@ class DCanvas(ttk.Frame):
             print "null"
             return
         elif len(a) == 1:
-            a.append('N/A')
+            a.append('n/a')
             isnull = True
         else:
             isnull = False
         # sfh_tau, dust_tau, dust_mu, met, age
-        # generate the list of ticks
+        # generate the list of parameters
         pars = {}
         for e in a:
             try:
                 pars[e] = getattr(par.ised, e)
             except AttributeError:
                 pars[e] = [0, ]
-        # set x and y
+        # set x and y, x is longer in length
         if len(pars[a[0]]) >= len(pars[a[1]]):
             x = a[0]
             y = a[1]
@@ -182,42 +194,40 @@ class DCanvas(ttk.Frame):
         # stack and unique-ise to eliminate overlapped point
         try:
             xy = np.unique(self.parspace[[x, y]])
-            print xy
             xx = xy[x]
             yy = xy[y]
         except ValueError:
-            print "keyerror"
             xx = np.unique(self.parspace[x])
             yy = np.zeros(len(xx))
-        # clean previous dots
+        # clean previous plot
         self.ax.cla()
-
         # a_out is the alpha of dots outside the select region
         a_out = 0.2
-        # plot the whole scatter
+        # plot the new scatter
         self.sc = self.ax.scatter(xx,
             yy, s=200, c=(0, .2, 1, a_out), linewidths=0, marker='p')
         # deal with metalicity, the discrete value
+        # use a transformation
         if x == 'met':
             mscale.register_scale(sMetalicity)
-            print "x_met"
             self.ax.set_xscale('metalicity')
             self.ax.set_xlim(-0.1, 0.1)
         if y == 'met':
             mscale.register_scale(sMetalicity)
             self.ax.set_yscale('metalicity')
             self.ax.set_ylim(-0.1, 0.1)
-        # deal with null, only keep the 0 tick
+        # deal with null, only keep the 0 tick and put it at middle
         if isnull:
+            self.ax.set_ylim(-1, 1)
             self.ax.yaxis.set_major_locator(FixedLocator([0, ]))
         # add figure elements: label, title, legend
         self.ax.grid()
-        self.ax.set_xlabel(x)
-        self.ax.set_ylabel(y)
-
+        self.ax.xaxis.set_ticks_position('top')
+        self.ax.xaxis.set_label_position('top')
+        self.ax.set_xlabel('parameter: (' + x + ')')
+        self.ax.set_ylabel('parameter: (' + y + ')')
         # sc is collection, enable selector for that
         self.selc = Selector(self.canvas, self.ax, self.sc, a_out)
-
         self.canvas.draw_idle()
 
 
@@ -323,10 +333,8 @@ class sMetalicity(mscale.ScaleBase):
         """
         class DegreeFormatter(Formatter):
             def __call__(self, x, pos=None):
-                # \u00b0 : degree symbol
                 return '%s' % (x)
 
-        #deg2rad = np.pi / 180.0
         axis.set_major_locator(FixedLocator([0.0001, 0.0004, 0.004, 0.008,
                      0.02, 0.05]))
         axis.set_major_formatter(DegreeFormatter())
@@ -378,8 +386,6 @@ class sMetalicity(mscale.ScaleBase):
             mtransforms.Transform.__init__(self)
 
         def transform_non_affine(self, a):
-            print a
-            print "invers"
             b = [-0.1, 0.0001, 0.0004, 0.004, 0.008,
                      0.02, 0.05, 0.1]
             c = [0, 1, 2, 3, 4, 5, 6, 7]

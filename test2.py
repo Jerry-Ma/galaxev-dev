@@ -1,172 +1,106 @@
-from __future__ import unicode_literals
+import matplotlib.pyplot as plt
 
-import numpy as np
-from numpy import ma
-from matplotlib import scale as mscale
-from matplotlib import transforms as mtransforms
-from matplotlib.ticker import Formatter, FixedLocator
+def main():
+    fig = plt.figure()
+    plt.axis([0, 10, 0, 10])
 
+    t = "This is a really long string that I'd rather have wrapped so that it"\
+    " doesn't go outside of the figure, but if it's long enough it will go"\
+    " off the top or bottom!"
+    plt.text(4, 1, t, ha='left', rotation=15)
+    plt.text(5, 3.5, t, ha='right', rotation=-15)
+    plt.text(5, 10, t, fontsize=18, ha='center', va='top')
+    plt.text(3, 0, t, family='serif', style='italic', ha='right')
+    plt.title("This is a really long title that I want to have wrapped so it"\
+             " does not go outside the figure boundaries", ha='center')
 
-class MercatorLatitudeScale(mscale.ScaleBase):
-    """
-    Scales data in range -pi/2 to pi/2 (-90 to 90 degrees) using
-    the system used to scale latitudes in a Mercator projection.
+    # Now make the text auto-wrap...
+    fig.canvas.mpl_connect('draw_event', on_draw)
+    plt.show()
 
-    The scale function:
-      ln(tan(y) + sec(y))
+def on_draw(event):
+    """Auto-wraps all text objects in a figure at draw-time"""
+    import matplotlib as mpl
+    fig = event.canvas.figure
 
-    The inverse scale function:
-      atan(sinh(y))
+    # Cycle through all artists in all the axes in the figure
+    for ax in fig.axes:
+        for artist in ax.get_children():
+            # If it's a text artist, wrap it...
+            if isinstance(artist, mpl.text.Text):
+                autowrap_text(artist, event.renderer)
 
-    Since the Mercator scale tends to infinity at +/- 90 degrees,
-    there is user-defined threshold, above and below which nothing
-    will be plotted.  This defaults to +/- 85 degrees.
+    # Temporarily disconnect any callbacks to the draw event...
+    # (To avoid recursion)
+    func_handles = fig.canvas.callbacks.callbacks[event.name]
+    fig.canvas.callbacks.callbacks[event.name] = {}
+    # Re-draw the figure..
+    fig.canvas.draw()
+    # Reset the draw event callbacks
+    fig.canvas.callbacks.callbacks[event.name] = func_handles
 
-    source:
-    http://en.wikipedia.org/wiki/Mercator_projection
-    """
+def autowrap_text(textobj, renderer):
+    """Wraps the given matplotlib text object so that it exceed the boundaries
+    of the axis it is plotted in."""
+    import textwrap
+    # Get the starting position of the text in pixels...
+    x0, y0 = textobj.get_transform().transform(textobj.get_position())
+    # Get the extents of the current axis in pixels...
+    clip = textobj.get_axes().get_window_extent()
+    # Set the text to rotate about the left edge (doesn't make sense otherwise)
+    textobj.set_rotation_mode('anchor')
 
-    # The scale class must have a member ``name`` that defines the
-    # string used to select the scale.  For example,
-    # ``gca().set_yscale("mercator")`` would be used to select this
-    # scale.
-    name = 'mercator'
+    # Get the amount of space in the direction of rotation to the left and
+    # right of x0, y0 (left and right are relative to the rotation, as well)
+    rotation = textobj.get_rotation()
+    right_space = min_dist_inside((x0, y0), rotation, clip)
+    left_space = min_dist_inside((x0, y0), rotation - 180, clip)
 
+    # Use either the left or right distance depending on the horiz alignment.
+    alignment = textobj.get_horizontalalignment()
+    if alignment is 'left':
+        new_width = right_space
+    elif alignment is 'right':
+        new_width = left_space
+    else:
+        new_width = 2 * min(left_space, right_space)
 
-    def __init__(self, axis, **kwargs):
-        """
-        Any keyword arguments passed to ``set_xscale`` and
-        ``set_yscale`` will be passed along to the scale's
-        constructor.
+    # Estimate the width of the new size in characters...
+    aspect_ratio = 0.5 # This varies with the font!!
+    fontsize = textobj.get_size()
+    pixels_per_char = aspect_ratio * renderer.points_to_pixels(fontsize)
 
-        thresh: The degree above which to crop the data.
-        """
-        mscale.ScaleBase.__init__(self)
-        #thresh = kwargs.pop("thresh", (85 / 180.0) * np.pi)
-        #if thresh >= np.pi / 2.0:
-        #    raise ValueError("thresh must be less than pi/2")
-        #self.thresh = thresh
+    # If wrap_width is < 1, just make it 1 character
+    wrap_width = max(1, new_width // pixels_per_char)
+    try:
+        wrapped_text = textwrap.fill(textobj.get_text(), wrap_width)
+    except TypeError:
+        # This appears to be a single word
+        wrapped_text = textobj.get_text()
+    textobj.set_text(wrapped_text)
 
-    def get_transform(self):
-        """
-        Override this method to return a new instance that does the
-        actual transformation of the data.
-
-        The MercatorLatitudeTransform class is defined below as a
-        nested class of this one.
-        """
-        return self.MercatorLatitudeTransform()
-
-    def set_default_locators_and_formatters(self, axis):
-        """
-        Override to set up the locators and formatters to use with the
-        scale.  This is only required if the scale requires custom
-        locators and formatters.  Writing custom locators and
-        formatters is rather outside the scope of this example, but
-        there are many helpful examples in ``ticker.py``.
-
-        In our case, the Mercator example uses a fixed locator from
-        -90 to 90 degrees and a custom formatter class to put convert
-        the radians to degrees and put a degree symbol after the
-        value::
-        """
-        class DegreeFormatter(Formatter):
-            def __call__(self, x, pos=None):
-                # \u00b0 : degree symbol
-                return "%d\u00b0" % ((x / np.pi) * 180.0)
-
-        deg2rad = np.pi / 180.0
-        axis.set_major_locator(FixedLocator(
-                np.arange(-90, 90, 10) * deg2rad))
-        axis.set_major_formatter(DegreeFormatter())
-        axis.set_minor_formatter(DegreeFormatter())
-
-    def limit_range_for_scale(self, vmin, vmax, minpos):
-        """
-        Override to limit the bounds of the axis to the domain of the
-        transform.  In the case of Mercator, the bounds should be
-        limited to the threshold that was passed in.  Unlike the
-        autoscaling provided by the tick locators, this range limiting
-        will always be adhered to, whether the axis range is set
-        manually, determined automatically or changed through panning
-        and zooming.
-        """
-        return max(vmin, -self.thresh), min(vmax, self.thresh)
-
-    class MercatorLatitudeTransform(mtransforms.Transform):
-        # There are two value members that must be defined.
-        # ``input_dims`` and ``output_dims`` specify number of input
-        # dimensions and output dimensions to the transformation.
-        # These are used by the transformation framework to do some
-        # error checking and prevent incompatible transformations from
-        # being connected together.  When defining transforms for a
-        # scale, which are, by definition, separable and have only one
-        # dimension, these members should always be set to 1.
-        input_dims = 1
-        output_dims = 1
-        is_separable = True
-
-        def __init__(self, thresh):
-            mtransforms.Transform.__init__(self)
-            self.thresh = thresh
-
-        def transform_non_affine(self, a):
-            """
-            This transform takes an Nx1 ``numpy`` array and returns a
-            transformed copy.  Since the range of the Mercator scale
-            is limited by the user-specified threshold, the input
-            array must be masked to contain only valid values.
-            ``matplotlib`` will handle masked arrays and remove the
-            out-of-range data from the plot.  Importantly, the
-            ``transform`` method *must* return an array that is the
-            same shape as the input array, since these values need to
-            remain synchronized with values in the other dimension.
-            """
-            masked = ma.masked_where((a < -self.thresh) | (a > self.thresh), a)
-            if masked.mask.any():
-                return ma.log(np.abs(ma.tan(masked) + 1.0 / ma.cos(masked)))
-            else:
-                return np.log(np.abs(np.tan(a) + 1.0 / np.cos(a)))
-
-        def inverted(self):
-            """
-            Override this method so matplotlib knows how to get the
-            inverse transform for this transform.
-            """
-            return MercatorLatitudeScale.InvertedMercatorLatitudeTransform(self.thresh)
-
-    class InvertedMercatorLatitudeTransform(mtransforms.Transform):
-        input_dims = 1
-        output_dims = 1
-        is_separable = True
-
-        def __init__(self, thresh):
-            mtransforms.Transform.__init__(self)
-            self.thresh = thresh
-
-        def transform_non_affine(self, a):
-            return np.arctan(np.sinh(a))
-
-        def inverted(self):
-            return MercatorLatitudeScale.MercatorLatitudeTransform(self.thresh)
-
-# Now that the Scale class has been defined, it must be registered so
-# that ``matplotlib`` can find it.
-mscale.register_scale(MercatorLatitudeScale)
-
+def min_dist_inside(point, rotation, box):
+    """Gets the space in a given direction from "point" to the boundaries of
+    "box" (where box is an object with x0, y0, x1, & y1 attributes, point is a
+    tuple of x,y, and rotation is the angle in degrees)"""
+    from math import sin, cos, radians
+    x0, y0 = point
+    rotation = radians(rotation)
+    distances = []
+    threshold = 0.0001
+    if cos(rotation) > threshold:
+        # Intersects the right axis
+        distances.append((box.x1 - x0) / cos(rotation))
+    if cos(rotation) < -threshold:
+        # Intersects the left axis
+        distances.append((box.x0 - x0) / cos(rotation))
+    if sin(rotation) > threshold:
+        # Intersects the top axis
+        distances.append((box.y1 - y0) / sin(rotation))
+    if sin(rotation) < -threshold:
+        # Intersects the bottom axis
+        distances.append((box.y0 - y0) / sin(rotation))
+    return min(distances)
 
 if __name__ == '__main__':
-    import matplotlib.pyplot as plt
-
-    t = np.arange(-180.0, 180.0, 0.1)
-    s = t / 360.0 * np.pi
-
-    plt.plot(t, s, '-', lw=2)
-    plt.gca().set_yscale('mercator')
-
-    plt.xlabel('Longitude')
-    plt.ylabel('Latitude')
-    plt.title('Mercator: Projection of the Oppressor')
-    plt.grid(True)
-
-    plt.show()
+    main()

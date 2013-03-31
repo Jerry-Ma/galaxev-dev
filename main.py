@@ -23,7 +23,6 @@ def flt(par):
 
 cfg = bc03.Cfg()    # cfg.* - basic cfg
                     # cfg.ised.* - bc03 cfg
-print cfg.ised.parspace
 #import cProfile
 #cProfile.run("csp(cfg)")
 csp(cfg)
