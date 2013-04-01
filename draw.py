@@ -17,6 +17,7 @@ from matplotlib.ticker import Formatter, FixedLocator
 class UI(ttk.Frame):
     '''Drawing the main window'''
     def __init__(self, master=None, par=None):
+        '''set up basic elements'''
         ttk.Frame.__init__(self, master)
         mn = DMenu(master=master, par=par)  # Dynamic Menu Bar
         mn.pack()
@@ -38,6 +39,7 @@ class UI(ttk.Frame):
         self.set_layer(mn, cv, None, par)  # this is the start screen
 
     def set_layer(self, mn, cv, i, par):
+        '''draw the upper plot'''
         # for init state
         if i is None:
             info = "\
@@ -86,6 +88,7 @@ class DMenu(ttk.Frame):
     ttl = []
 
     def __init__(self, master=None, par=None):
+        '''set up the basic menu items'''
         ttk.Frame.__init__(self, master)
         # add menu button for filters
         ttk.Separator(self, orient='vertical').pack(
@@ -156,6 +159,7 @@ class DCanvas(ttk.Frame):
     bx = fig.add_subplot(212, aspect='auto')
 
     def __init__(self, master=None):
+        '''set up the basic canvas'''
         ttk.Frame.__init__(self, master)
         self.pack()
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.master)
@@ -165,6 +169,7 @@ class DCanvas(ttk.Frame):
         self.toolbar.update()
 
     def draw_parspace(self, par=None, a=None):
+        '''draw parspcace in upper panel'''
         if len(a) == 0:
             print "null"
             return
@@ -226,6 +231,8 @@ class DCanvas(ttk.Frame):
         self.ax.xaxis.set_label_position('top')
         self.ax.set_xlabel('parameter: (' + x + ')')
         self.ax.set_ylabel('parameter: (' + y + ')')
+        self.ax.xaxis.set_visible(True)
+        self.ax.yaxis.set_visible(True)
         # sc is collection, enable selector for that
         self.selc = Selector(self.canvas, self.ax, self.sc, a_out)
         self.canvas.draw_idle()
@@ -235,6 +242,7 @@ class Selector(object):
     '''Select indices from a matplotlib collection'''
 
     def __init__(self, cv, ax, sc, a_out=0.2):
+        '''enable both left and right selection for the upper panel'''
         self.cv = ax.figure.canvas
         self.ax = ax
         self.sc = sc
@@ -254,6 +262,7 @@ class Selector(object):
         self.ind = []
 
     def on_select(self, c, r=None):
+        '''the callback function'''
         if r is None:
             path = Path(c)
         else:
@@ -280,16 +289,19 @@ class rLassoSelector(LassoSelector):
 
     def __init__(self, ax, onselect=None, useblit=True,
         lineprops=None, button=1):
+        '''add a new parameter, the button'''
         super(rLassoSelector, self).__init__(
             ax, onselect, useblit, lineprops)
         self.validButton = button
 
     def ignore(self, event):
+        '''igore other events except the given mouse button'''
         wrong_button = hasattr(event, 'button') and\
             event.button != self.validButton
         return not self.active or wrong_button
 
     def onmove(self, event):
+        '''callback for mouse drag, igore when use wrong button'''
         if self.ignore(event) or event.inaxes != self.ax:
             return
         if self.verts is None:
@@ -316,6 +328,7 @@ class sMetalicity(mscale.ScaleBase):
     name = 'metalicity'
 
     def __init__(self, axis, **kwargs):
+        '''call parent class constructor'''
         mscale.ScaleBase.__init__(self)
 
     def get_transform(self):
@@ -332,7 +345,9 @@ class sMetalicity(mscale.ScaleBase):
         locators and formatters.
         """
         class DegreeFormatter(Formatter):
+            '''simple class to format float as string to eliminate round-off'''
             def __call__(self, x, pos=None):
+                '''as said'''
                 return '%s' % (x)
 
         axis.set_major_locator(FixedLocator([0.0001, 0.0004, 0.004, 0.008,
@@ -356,6 +371,7 @@ class sMetalicity(mscale.ScaleBase):
         is_separable = True
 
         def __init__(self):
+            '''call the parent class instructor'''''
             mtransforms.Transform.__init__(self)
 
         def transform_non_affine(self, a):
@@ -383,13 +399,16 @@ class sMetalicity(mscale.ScaleBase):
         is_separable = True
 
         def __init__(self):
+            '''call the parent constructor'''
             mtransforms.Transform.__init__(self)
 
         def transform_non_affine(self, a):
+            '''do the inverted transformation'''
             b = [-0.1, 0.0001, 0.0004, 0.004, 0.008,
                      0.02, 0.05, 0.1]
             c = [0, 1, 2, 3, 4, 5, 6, 7]
             return np.interp(a, c, b)
 
         def inverted(self):
+            '''inverted invers is the original'''
             return sMetalicity.MetalicityTransform()
